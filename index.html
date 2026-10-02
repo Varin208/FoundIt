@@ -1,0 +1,15 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>FoundIt — AUPP Lost &amp; Found</title>
+<link rel="icon" type="image/png" href="assets/favicon.png">
+<script src="js/api.js"></script>
+<script>
+  // Simple entry point: send signed-in users to Home, everyone else to Login.
+  window.location.href = api.getCurrentUser() ? 'home.html' : 'login.html';
+</script>
+</head>
+<body></body>
+</html>

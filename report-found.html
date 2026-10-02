@@ -1,0 +1,162 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Report a found item · FoundIt</title>
+<link rel="icon" type="image/png" href="assets/favicon.png">
+<link rel="apple-touch-icon" href="assets/apple-touch-icon.png">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&family=Poppins:wght@600;700&display=swap" rel="stylesheet">
+<link rel="stylesheet" href="css/styles.css">
+</head>
+<body>
+
+<!-- ==== Shared site header (extract to templates/_header.html when moving to Flask/Jinja) ==== -->
+<header class="site-header">
+  <div class="container site-header__bar">
+    <a href="home.html" class="brand">
+      <span class="brand__icon" id="brand-icon"></span>
+      <span class="brand__name">FoundIt</span>
+    </a>
+    <nav class="site-nav" aria-label="Main">
+      <a href="home.html" data-page="home">Home</a>
+      <a href="my-reports.html" data-page="my-reports">My Reports</a>
+    </nav>
+    <div class="header-actions">
+      <div class="user-chip">
+        <span class="user-chip__avatar" data-user-initial></span>
+        <span data-user-name></span>
+      </div>
+      <button class="btn btn-ghost" data-logout title="Log out" aria-label="Log out"><span id="logout-icon"></span></button>
+      <button class="nav-toggle" data-nav-toggle aria-label="Toggle menu"><span id="menu-icon"></span></button>
+    </div>
+  </div>
+</header>
+<!-- ==== /Shared site header ==== -->
+
+<main class="page-main">
+  <div class="container" style="max-width: 640px;">
+
+    <div class="page-head">
+      <h1>Report a found item</h1>
+      <p>Found something on campus? Just add a photo and where you found it — that's usually enough for us to find the owner.</p>
+    </div>
+
+    <div class="card card--pad">
+      <div class="form-banner" data-banner role="alert"></div>
+
+      <form id="found-form" novalidate>
+        <div class="field">
+          <label>Photo <span style="font-weight:400; color:var(--accent-red);">(required)</span></label>
+          <div class="photo-upload photo-upload--required" data-dropzone tabindex="0" role="button" aria-label="Upload a photo of the item">
+            <span class="photo-upload__icon" id="upload-icon"></span>
+            <div class="photo-upload__text">Click to take or upload a photo</div>
+            <div class="photo-upload__subtext">This is the main thing we need — PNG or JPG, up to 10MB</div>
+            <input type="file" accept="image/*" capture="environment" data-file-input>
+          </div>
+          <div class="photo-preview" data-preview>
+            <img data-preview-img alt="Preview of the uploaded photo">
+            <button type="button" class="photo-preview__remove" data-remove-photo aria-label="Remove photo"><span id="remove-icon"></span></button>
+          </div>
+          <div class="error-text" data-error-for="photo">Add a photo of the item.</div>
+        </div>
+
+        <div class="field">
+          <label for="location">Where you found it</label>
+          <input type="text" id="location" name="location" placeholder="e.g. Cafeteria, near the entrance" required>
+          <div class="error-text" data-error-for="location">Add a location.</div>
+        </div>
+
+        <div class="field">
+          <label for="description">Description <span style="font-weight:400; color:var(--ink-muted);">(optional)</span></label>
+          <textarea id="description" name="description" placeholder="Anything that might help the owner recognize it"></textarea>
+        </div>
+
+        <div style="display:flex; gap:12px; margin-top: 28px;">
+          <a href="home.html" class="btn btn-secondary">Cancel</a>
+          <button type="submit" class="btn btn-primary" id="submit-btn">Submit report</button>
+        </div>
+      </form>
+    </div>
+
+  </div>
+</main>
+
+<!-- ==== Shared site footer (extract to templates/_footer.html when moving to Flask/Jinja) ==== -->
+<footer class="site-footer">
+  <div class="container">
+    <span>© 2026 FoundIt · American University of Phnom Penh</span>
+    <span>Need help? Contact <a href="mailto:studentaffairs@aupp.edu.kh">Student Affairs</a></span>
+  </div>
+</footer>
+<!-- ==== /Shared site footer ==== -->
+
+<script src="js/icons.js"></script>
+<script src="js/api.js"></script>
+<script src="js/app.js"></script>
+<script>
+  const currentUser = requireAuth();
+  if (currentUser) {
+    document.getElementById('brand-icon').innerHTML = ICONS.logo;
+    document.getElementById('logout-icon').innerHTML = ICONS.logout;
+    document.getElementById('menu-icon').innerHTML = ICONS.menu;
+    document.getElementById('upload-icon').innerHTML = ICONS.camera;
+    document.getElementById('remove-icon').innerHTML = ICONS.close;
+    initHeader(); // sub-page of the reporting flow; no single nav item to highlight
+
+    let photoDataUrl = null;
+    initPhotoUpload({
+      dropzoneSelector: '[data-dropzone]',
+      inputSelector: '[data-file-input]',
+      previewSelector: '[data-preview]',
+      imgSelector: '[data-preview-img]',
+      removeSelector: '[data-remove-photo]',
+      onChange: (dataUrl) => {
+        photoDataUrl = dataUrl;
+        const err = document.querySelector('[data-error-for="photo"]');
+        if (dataUrl) err.classList.remove('is-visible');
+      },
+    });
+
+    const form = document.getElementById('found-form');
+    const banner = document.querySelector('[data-banner]');
+    const submitBtn = document.getElementById('submit-btn');
+
+    function setFieldError(field, show) {
+      const input = form[field];
+      const err = document.querySelector(`[data-error-for="${field}"]`);
+      if (show && input) input.classList.add('form-error');
+      else if (input) input.classList.remove('form-error');
+      if (err) err.classList.toggle('is-visible', !!show);
+    }
+
+    form.addEventListener('submit', async (e) => {
+      e.preventDefault();
+      hideBanner(banner);
+
+      const location = form.location.value.trim();
+      const description = form.description.value.trim();
+
+      let valid = true;
+      const photoErr = document.querySelector('[data-error-for="photo"]');
+      if (!photoDataUrl) { photoErr.classList.add('is-visible'); valid = false; } else { photoErr.classList.remove('is-visible'); }
+      setFieldError('location', !location); if (!location) valid = false;
+      if (!valid) return;
+
+      submitBtn.disabled = true;
+      submitBtn.textContent = 'Submitting…';
+      try {
+        await api.createFoundReport({ location, description, photo: photoDataUrl });
+        window.location.href = 'my-reports.html?submitted=found';
+      } catch (err) {
+        showBanner(banner, err.message, 'error');
+        submitBtn.disabled = false;
+        submitBtn.textContent = 'Submit report';
+      }
+    });
+  }
+</script>
+</body>
+</html>

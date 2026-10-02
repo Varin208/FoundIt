@@ -1,0 +1,122 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Log in · FoundIt — AUPP Lost &amp; Found</title>
+<link rel="icon" type="image/png" href="assets/favicon.png">
+<link rel="apple-touch-icon" href="assets/apple-touch-icon.png">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&family=Poppins:wght@600;700&display=swap" rel="stylesheet">
+<link rel="stylesheet" href="css/styles.css">
+</head>
+<body>
+
+<div class="auth-shell">
+  <!-- Brand panel -->
+  <div class="auth-shell__brand">
+    <a href="login.html" class="brand brand--on-dark">
+      <span class="brand__icon" id="brand-icon-1"></span>
+      <span class="brand__name">FoundIt</span>
+    </a>
+    <div class="auth-shell__brand-copy">
+      <h1>Reuniting AUPP with what it's misplaced.</h1>
+      <p>Report a lost item, hand in something you've found, and get notified the moment there's a match — all in one place for the AUPP community.</p>
+      <ul class="auth-divider-list">
+        <li id="icon-shield"><span></span> Only current AUPP students and staff can sign in, using their university email.</li>
+        <li id="icon-mail"><span></span> You'll get an email the moment a found item looks like a match for something you lost.</li>
+      </ul>
+    </div>
+    <div class="auth-shell__brand-foot">American University of Phnom Penh · Campus Lost &amp; Found</div>
+  </div>
+
+  <!-- Form panel -->
+  <div class="auth-shell__form">
+    <div class="auth-form-wrap">
+      <a href="login.html" class="brand">
+        <span class="brand__icon" id="brand-icon-2"></span>
+        <span class="brand__name">FoundIt</span>
+      </a>
+
+      <h1>Welcome back</h1>
+      <p class="lede">Log in with your AUPP email to report or track items.</p>
+
+      <div class="form-banner" data-banner role="alert"></div>
+
+      <form id="login-form" novalidate>
+        <div class="field">
+          <label for="email">University email</label>
+          <input type="email" id="email" name="email" placeholder="yourname@aupp.edu.kh" autocomplete="email" required>
+          <div class="error-text" data-error-for="email">Enter your AUPP email address.</div>
+        </div>
+        <div class="field">
+          <label for="password">Password</label>
+          <input type="password" id="password" name="password" placeholder="••••••••" autocomplete="current-password" required>
+          <div class="error-text" data-error-for="password">Enter your password.</div>
+        </div>
+        <button type="submit" class="btn btn-primary btn-block" id="login-submit">Log in</button>
+      </form>
+
+      <p class="auth-foot-link">Don't have an account yet? <a href="signup.html">Create one</a></p>
+      <p class="auth-foot-link" style="margin-top:6px; font-size:0.82rem;">Demo account: sophea.chan@aupp.edu.kh / foundit123</p>
+    </div>
+  </div>
+</div>
+
+<script src="js/icons.js"></script>
+<script src="js/api.js"></script>
+<script src="js/app.js"></script>
+<script>
+  document.getElementById('brand-icon-1').innerHTML = ICONS.logo;
+  document.getElementById('brand-icon-2').innerHTML = ICONS.logo;
+  document.querySelector('#icon-shield span').outerHTML = ICONS.shield;
+  document.querySelector('#icon-mail span').outerHTML = ICONS.mail;
+
+  // If already logged in, skip straight to home.
+  if (api.getCurrentUser()) {
+    window.location.href = 'home.html';
+  }
+
+  const form = document.getElementById('login-form');
+  const banner = document.querySelector('[data-banner]');
+  const submitBtn = document.getElementById('login-submit');
+
+  form.addEventListener('submit', async (e) => {
+    e.preventDefault();
+    hideBanner(banner);
+    const email = form.email.value.trim();
+    const password = form.password.value;
+
+    let valid = true;
+    document.querySelectorAll('.error-text').forEach((el) => el.classList.remove('is-visible'));
+    document.querySelectorAll('input').forEach((el) => el.classList.remove('form-error'));
+
+    if (!email) {
+      document.querySelector('[data-error-for="email"]').classList.add('is-visible');
+      form.email.classList.add('form-error');
+      valid = false;
+    }
+    if (!password) {
+      document.querySelector('[data-error-for="password"]').classList.add('is-visible');
+      form.password.classList.add('form-error');
+      valid = false;
+    }
+    if (!valid) return;
+
+    submitBtn.disabled = true;
+    submitBtn.textContent = 'Logging in…';
+    try {
+      await api.login({ email, password });
+      const redirect = sessionStorage.getItem('foundit_redirect');
+      sessionStorage.removeItem('foundit_redirect');
+      window.location.href = redirect || 'home.html';
+    } catch (err) {
+      showBanner(banner, err.message, 'error');
+      submitBtn.disabled = false;
+      submitBtn.textContent = 'Log in';
+    }
+  });
+</script>
+</body>
+</html>

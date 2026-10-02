@@ -1,0 +1,108 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Home · FoundIt — AUPP Lost &amp; Found</title>
+<link rel="icon" type="image/png" href="assets/favicon.png">
+<link rel="apple-touch-icon" href="assets/apple-touch-icon.png">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&family=Poppins:wght@600;700&display=swap" rel="stylesheet">
+<link rel="stylesheet" href="css/styles.css">
+</head>
+<body>
+
+<!-- ==== Shared site header (extract to templates/_header.html when moving to Flask/Jinja) ==== -->
+<header class="site-header">
+  <div class="container site-header__bar">
+    <a href="home.html" class="brand">
+      <span class="brand__icon" id="brand-icon"></span>
+      <span class="brand__name">FoundIt</span>
+    </a>
+    <nav class="site-nav" aria-label="Main">
+      <a href="home.html" data-page="home">Home</a>
+      <a href="my-reports.html" data-page="my-reports">My Reports</a>
+    </nav>
+    <div class="header-actions">
+      <div class="user-chip">
+        <span class="user-chip__avatar" data-user-initial></span>
+        <span data-user-name></span>
+      </div>
+      <button class="btn btn-ghost" data-logout title="Log out" aria-label="Log out"><span id="logout-icon"></span></button>
+      <button class="nav-toggle" data-nav-toggle aria-label="Toggle menu"><span id="menu-icon"></span></button>
+    </div>
+  </div>
+</header>
+<!-- ==== /Shared site header ==== -->
+
+<main class="page-main">
+  <div class="container">
+
+    <div class="home-hero">
+      <div>
+        <p class="home-hero__eyebrow">Good to see you</p>
+        <h1 data-user-name-heading>Welcome back</h1>
+      </div>
+      <div class="quick-stats">
+        <div><strong data-stat-lost>–</strong><span>Lost reports</span></div>
+        <div><strong data-stat-found>–</strong><span>Found reports</span></div>
+        <div><strong data-stat-matches>–</strong><span>Needs your review</span></div>
+      </div>
+    </div>
+
+    <div class="choice-grid">
+      <a href="report-lost.html" class="choice-card choice-card--lost">
+        <span class="choice-card__icon" id="icon-lost"></span>
+        <h2>I Lost Something</h2>
+        <p>Tell us what it looked like, and where and when you last had it. We'll watch for a match.</p>
+        <span class="choice-card__cta">Report a lost item <span id="arrow-lost"></span></span>
+      </a>
+      <a href="report-found.html" class="choice-card choice-card--found">
+        <span class="choice-card__icon" id="icon-found"></span>
+        <h2>I Found Something</h2>
+        <p>Snap a photo and drop a pin on where you found it. Takes less than a minute.</p>
+        <span class="choice-card__cta">Report a found item <span id="arrow-found"></span></span>
+      </a>
+    </div>
+
+  </div>
+</main>
+
+<!-- ==== Shared site footer (extract to templates/_footer.html when moving to Flask/Jinja) ==== -->
+<footer class="site-footer">
+  <div class="container">
+    <span>© 2026 FoundIt · American University of Phnom Penh</span>
+    <span>Need help? Contact <a href="mailto:studentaffairs@aupp.edu.kh">Student Affairs</a></span>
+  </div>
+</footer>
+<!-- ==== /Shared site footer ==== -->
+
+<script src="js/icons.js"></script>
+<script src="js/api.js"></script>
+<script src="js/app.js"></script>
+<script>
+  const currentUser = requireAuth();
+  if (currentUser) {
+    document.getElementById('brand-icon').innerHTML = ICONS.logo;
+    document.getElementById('logout-icon').innerHTML = ICONS.logout;
+    document.getElementById('menu-icon').innerHTML = ICONS.menu;
+    document.getElementById('icon-lost').innerHTML = ICONS.search;
+    document.getElementById('icon-found').innerHTML = ICONS.camera;
+    document.getElementById('arrow-lost').innerHTML = ICONS.arrowRight;
+    document.getElementById('arrow-found').innerHTML = ICONS.arrowRight;
+    initHeader('home');
+
+    const firstName = currentUser.name.split(' ')[0];
+    document.querySelector('[data-user-name-heading]').textContent = `Welcome back, ${firstName}`;
+
+    api.getMyReports().then(({ lost, found }) => {
+      document.querySelector('[data-stat-lost]').textContent = lost.length;
+      document.querySelector('[data-stat-found]').textContent = found.length;
+      const needsReview = [...lost, ...found].filter((r) => r.status === 'potential_match').length;
+      document.querySelector('[data-stat-matches]').textContent = needsReview;
+    });
+  }
+</script>
+</body>
+</html>

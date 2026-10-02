@@ -1,0 +1,222 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Potential match · FoundIt</title>
+<link rel="icon" type="image/png" href="assets/favicon.png">
+<link rel="apple-touch-icon" href="assets/apple-touch-icon.png">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&family=Poppins:wght@600;700&display=swap" rel="stylesheet">
+<link rel="stylesheet" href="css/styles.css">
+</head>
+<body>
+
+<!--
+  This page is normally reached via a link in an email notification
+  (e.g. potential-match.html?id=match_demo_1) rather than the main nav,
+  but it still lives inside the regular app shell so a signed-in person
+  can review it comfortably. If they aren't signed in yet, requireAuth()
+  sends them to log in first and brings them straight back here.
+-->
+
+<!-- ==== Shared site header (extract to templates/_header.html when moving to Flask/Jinja) ==== -->
+<header class="site-header">
+  <div class="container site-header__bar">
+    <a href="home.html" class="brand">
+      <span class="brand__icon" id="brand-icon"></span>
+      <span class="brand__name">FoundIt</span>
+    </a>
+    <nav class="site-nav" aria-label="Main">
+      <a href="home.html" data-page="home">Home</a>
+      <a href="my-reports.html" data-page="my-reports">My Reports</a>
+    </nav>
+    <div class="header-actions">
+      <div class="user-chip">
+        <span class="user-chip__avatar" data-user-initial></span>
+        <span data-user-name></span>
+      </div>
+      <button class="btn btn-ghost" data-logout title="Log out" aria-label="Log out"><span id="logout-icon"></span></button>
+      <button class="nav-toggle" data-nav-toggle aria-label="Toggle menu"><span id="menu-icon"></span></button>
+    </div>
+  </div>
+</header>
+<!-- ==== /Shared site header ==== -->
+
+<main class="page-main">
+  <div class="container" style="max-width: 880px;">
+
+    <div id="match-content" style="display:none;">
+      <div class="page-head">
+        <h1>Is this your item?</h1>
+        <p>We think we found a match between your lost item report and something someone else turned in.</p>
+      </div>
+
+      <div class="match-alert">
+        <span id="alert-icon"></span>
+        <div>
+          <strong>Take a look before you decide</strong>
+          Compare the details below carefully. Once you respond, we'll notify the person who found it.
+        </div>
+      </div>
+
+      <div class="match-grid">
+        <div class="card match-panel">
+          <div class="match-panel__label">YOUR LOST ITEM REPORT</div>
+          <div class="match-panel__photo" data-lost-photo-wrap>
+            <span id="lost-photo-icon"></span>
+          </div>
+          <dl>
+            <div class="match-detail"><dt>Item</dt><dd data-lost-name></dd></div>
+            <div class="match-detail"><dt>Description</dt><dd data-lost-desc></dd></div>
+            <div class="match-detail"><dt>Lost at</dt><dd data-lost-location></dd></div>
+            <div class="match-detail"><dt>Date &amp; time</dt><dd data-lost-datetime></dd></div>
+          </dl>
+        </div>
+
+        <div class="match-grid__divider"><span id="swap-icon"></span></div>
+
+        <div class="card match-panel">
+          <div class="match-panel__label">POTENTIAL FOUND ITEM</div>
+          <div class="match-panel__photo" data-found-photo-wrap>
+            <span id="found-photo-icon"></span>
+          </div>
+          <dl>
+            <div class="match-detail"><dt>Found at</dt><dd data-found-location></dd></div>
+            <div class="match-detail"><dt>Date &amp; time found</dt><dd data-found-datetime></dd></div>
+            <div class="match-detail"><dt>Finder's notes</dt><dd data-found-desc></dd></div>
+          </dl>
+        </div>
+      </div>
+
+      <div class="card card--pad" data-decision-panel>
+        <h3 class="mt-0">Does this look like your item?</h3>
+        <p style="margin-bottom:20px;">Choose an option below. This helps keep the search accurate for everyone.</p>
+        <div class="match-actions">
+          <button type="button" class="btn btn-primary" data-confirm-yes><span id="check-icon"></span> This is my item</button>
+          <button type="button" class="btn btn-danger" data-confirm-no><span id="x-icon"></span> This isn't my item</button>
+        </div>
+      </div>
+
+      <div class="card card--pad text-center" data-decision-result style="display:none;">
+        <div id="result-icon" style="width:48px; height:48px; margin:0 auto 14px;"></div>
+        <h3 data-result-title></h3>
+        <p data-result-text style="margin-bottom:20px;"></p>
+        <a href="my-reports.html" class="btn btn-secondary">Back to My Reports</a>
+      </div>
+    </div>
+
+    <div class="card card--pad text-center" data-not-found style="display:none;">
+      <div style="width:48px; height:48px; margin:0 auto 14px; color: var(--silver);" id="notfound-icon"></div>
+      <h3>This match link isn't valid</h3>
+      <p style="margin-bottom:20px;">It may have already been resolved, or the link may be incorrect.</p>
+      <a href="my-reports.html" class="btn btn-secondary">Go to My Reports</a>
+    </div>
+
+  </div>
+</main>
+
+<!-- ==== Shared site footer (extract to templates/_footer.html when moving to Flask/Jinja) ==== -->
+<footer class="site-footer">
+  <div class="container">
+    <span>© 2026 FoundIt · American University of Phnom Penh</span>
+    <span>Need help? Contact <a href="mailto:studentaffairs@aupp.edu.kh">Student Affairs</a></span>
+  </div>
+</footer>
+<!-- ==== /Shared site footer ==== -->
+
+<script src="js/icons.js"></script>
+<script src="js/api.js"></script>
+<script src="js/app.js"></script>
+<script>
+  const currentUser = requireAuth();
+
+  if (currentUser) {
+    document.getElementById('brand-icon').innerHTML = ICONS.logo;
+    document.getElementById('logout-icon').innerHTML = ICONS.logout;
+    document.getElementById('menu-icon').innerHTML = ICONS.menu;
+    document.getElementById('alert-icon').innerHTML = ICONS.bell;
+    document.getElementById('swap-icon').innerHTML = ICONS.swap;
+    document.getElementById('check-icon').innerHTML = ICONS.check;
+    document.getElementById('x-icon').innerHTML = ICONS.close;
+    document.getElementById('notfound-icon').innerHTML = ICONS.search;
+    initHeader(); // reached from an email link, not the main nav; no item to highlight
+
+    const params = new URLSearchParams(window.location.search);
+    const matchId = params.get('id');
+
+    async function load() {
+      if (!matchId) {
+        document.querySelector('[data-not-found]').style.display = 'block';
+        return;
+      }
+      try {
+        const { match, lostReport, foundReport } = await api.getMatch(matchId);
+
+        document.getElementById('match-content').style.display = 'block';
+
+        // Lost side
+        document.querySelector('[data-lost-name]').textContent = lostReport.itemName;
+        document.querySelector('[data-lost-desc]').textContent = lostReport.description;
+        document.querySelector('[data-lost-location]').textContent = lostReport.location;
+        document.querySelector('[data-lost-datetime]').textContent = formatDateTime(lostReport.dateTime);
+        const lostPhotoWrap = document.querySelector('[data-lost-photo-wrap]');
+        if (lostReport.photo) {
+          lostPhotoWrap.innerHTML = `<img src="${lostReport.photo}" alt="Photo you submitted with your lost item report">`;
+        } else {
+          document.getElementById('lost-photo-icon').innerHTML = ICONS.item;
+        }
+
+        // Found side
+        document.querySelector('[data-found-location]').textContent = foundReport.location;
+        document.querySelector('[data-found-datetime]').textContent = formatDateTime(foundReport.dateTime);
+        document.querySelector('[data-found-desc]').textContent = foundReport.description || 'No additional notes.';
+        const foundPhotoWrap = document.querySelector('[data-found-photo-wrap]');
+        if (foundReport.photo) {
+          foundPhotoWrap.innerHTML = `<img src="${foundReport.photo}" alt="Photo of the found item">`;
+        } else {
+          document.getElementById('found-photo-icon').innerHTML = ICONS.camera;
+        }
+
+        if (match.status !== 'pending') {
+          showResult(match.status === 'confirmed');
+        }
+
+        document.querySelector('[data-confirm-yes]').addEventListener('click', () => respond(true));
+        document.querySelector('[data-confirm-no]').addEventListener('click', () => respond(false));
+
+        async function respond(isMatch) {
+          document.querySelectorAll('[data-decision-panel] button').forEach((b) => (b.disabled = true));
+          try {
+            await api.respondToMatch(matchId, isMatch);
+            showResult(isMatch);
+          } catch (err) {
+            alert(err.message);
+            document.querySelectorAll('[data-decision-panel] button').forEach((b) => (b.disabled = false));
+          }
+        }
+
+        function showResult(isMatch) {
+          document.querySelector('[data-decision-panel]').style.display = 'none';
+          const resultPanel = document.querySelector('[data-decision-result]');
+          resultPanel.style.display = 'block';
+          document.getElementById('result-icon').innerHTML = isMatch ? ICONS.check : ICONS.close;
+          document.getElementById('result-icon').style.color = isMatch ? 'var(--accent-teal)' : 'var(--accent-slate)';
+          document.querySelector('[data-result-title]').textContent = isMatch
+            ? "Great — we'll help you get it back"
+            : 'Thanks for letting us know';
+          document.querySelector('[data-result-text]').textContent = isMatch
+            ? "We've marked this as claimed and notified the person who found it. They'll be in touch about pickup."
+            : "We'll keep watching for other possible matches for your lost item.";
+        }
+      } catch (err) {
+        document.querySelector('[data-not-found]').style.display = 'block';
+      }
+    }
+
+    load();
+  }
+</script>
+</body>
+</html>
