@@ -19,6 +19,8 @@ FoundIt/
 │   ├── models.py          Database tables (users, reports, matches)
 │   ├── auth.py            Register / login / logout
 │   ├── reports.py         Save lost/found reports + photos, list my reports
+│   ├── matching.py        Gemini AI matching (runs when a found item is reported)
+│   ├── check_gemini.py    Tests your Gemini key and model before you rely on them
 │   ├── uploads/           Saved photos (git-ignored)
 │   ├── requirements.txt
 │   └── .env.example       Copy to .env and fill in (never commit .env)
@@ -45,12 +47,30 @@ the pages need the server).
 |------|---------|--------|
 | 1 | Flask + SQLite + register / login / logout | Done |
 | 2 | Save lost/found reports and photos; My Reports and Home stats from the database | Done |
-| 3 | Gemini image matching | Next |
-| 4 | Potential Match page: confirm / deny, update status | |
+| 3 | Gemini image matching | Done |
+| 4 | Potential Match page: confirm / deny, update status | Next |
 | 5 | Email notifications with a link to the match page | |
 
-Until its step is done, `getMatch` and `respondToMatch` in `frontend/js/api.js`
+Until Step 4 is done, `getMatch` and `respondToMatch` in `frontend/js/api.js`
 (marked **MOCK**) still use the browser's localStorage instead of the server.
+
+## How the AI matching works
+
+1. Someone submits a **found** item (photo, location, optional notes).
+2. In the background, the server sends Gemini that photo plus the open **lost**
+   reports from *other* people (newest 20, up to 60 days old) and their photos.
+3. Gemini scores each lost report from 0 to 1. Scores at or above
+   `MATCH_THRESHOLD` (default 0.6) become a **pending match**, at most 3 per found
+   item. Both reports change to **Potential match**.
+4. The owner of the lost report sees a **Review match** button in My Reports.
+
+Matching only runs when a *found* item is submitted. A lost report filed after
+the item was already found is not compared automatically (see "Ideas for later").
+
+Progress and each score are printed in the server terminal. If matching seems
+to do nothing, check there first, then run `python check_gemini.py`.
+
+Settings in `backend/.env`: `GEMINI_API_KEY`, `GEMINI_MODEL`, `MATCH_THRESHOLD`.
 
 ## API (so far)
 
@@ -71,6 +91,16 @@ Until its step is done, `getMatch` and `respondToMatch` in `frontend/js/api.js`
   `backend/.env`, which is git-ignored. They are never sent to the browser.
 - Passwords are stored as salted hashes. The login cookie is `HttpOnly`.
 - Only emails ending in `@aupp.edu.kh` can register (checked on the server).
+- `GEMINI_API_KEY` is read only on the server and is never sent to the browser.
+- Found-item photos are sent to Google's Gemini API for analysis. Photos can
+  contain personal items such as student ID cards, so check Google's Gemini API
+  terms for how your plan handles data before using this with real students.
 - Uploaded photos are verified as real images with Pillow, stripped of metadata
   (including GPS location), shrunk, and re-saved as JPEG under random names.
   Only logged-in users can view them.
+
+## Ideas for later (not built)
+
+- Also compare a **new lost report** against already-reported found items.
+- Hand-over verification: matching only suggests; staff should still check that
+  the person claiming an item can describe it.

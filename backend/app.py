@@ -10,6 +10,7 @@ and no CORS setup is needed.
 
 Run it (from the backend folder):   python app.py
 """
+import logging
 import os
 from datetime import timedelta
 from pathlib import Path
@@ -24,10 +25,19 @@ FRONTEND_DIR = BASE_DIR.parent / "frontend"
 load_dotenv(BASE_DIR / ".env")
 
 from auth import auth_bp  # noqa: E402  (imported after load_dotenv on purpose)
+from matching import DEFAULT_MODEL, DEFAULT_THRESHOLD  # noqa: E402
 from models import db  # noqa: E402
 from reports import reports_bp  # noqa: E402
 
 DEV_SECRET_KEY = "dev-only-secret-change-me"
+
+
+def read_threshold(raw):
+    """MATCH_THRESHOLD from .env: a number between 0 and 1 (default 0.6)."""
+    try:
+        return min(1.0, max(0.0, float(raw)))
+    except (TypeError, ValueError):
+        return DEFAULT_THRESHOLD
 
 
 def create_app(test_config=None):
@@ -46,6 +56,10 @@ def create_app(test_config=None):
         SESSION_COOKIE_SAMESITE="Lax",
         UPLOAD_DIR=str(BASE_DIR / "uploads"),
         MAX_CONTENT_LENGTH=11 * 1024 * 1024,  # photos up to ~10MB (plus form text)
+        # Gemini (key stays on the server; it is never sent to the browser)
+        GEMINI_API_KEY=os.environ.get("GEMINI_API_KEY", "").strip(),
+        GEMINI_MODEL=os.environ.get("GEMINI_MODEL", "").strip() or DEFAULT_MODEL,
+        MATCH_THRESHOLD=read_threshold(os.environ.get("MATCH_THRESHOLD")),
     )
     if test_config:
         app.config.update(test_config)
@@ -53,6 +67,7 @@ def create_app(test_config=None):
     if app.config["SECRET_KEY"] == DEV_SECRET_KEY:
         print("WARNING: using the built-in dev SECRET_KEY. Set SECRET_KEY in backend/.env.")
 
+    app.logger.setLevel(logging.INFO)  # show matching progress in the terminal
     os.makedirs(app.config["UPLOAD_DIR"], exist_ok=True)
 
     db.init_app(app)

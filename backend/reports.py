@@ -22,6 +22,7 @@ from datetime import datetime, timedelta, timezone
 from flask import Blueprint, current_app, jsonify, request, send_from_directory
 from PIL import Image, ImageOps, UnidentifiedImageError
 
+import matching
 from auth import current_user, error, login_required
 from models import Report, db, utcnow
 
@@ -149,7 +150,10 @@ def create_found_report():
         owner_id=user.id, kind="found", item_name="Found item", description=description,
         location=location, event_time=utcnow(), status="searching",
     )
-    return store_report(report, photo)
+    response = store_report(report, photo)
+    if report.id is not None:  # it was saved, so look for owners in the background
+        matching.start_in_background(current_app._get_current_object(), report.id)
+    return response
 
 
 @reports_bp.get("/reports/mine")
