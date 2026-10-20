@@ -107,18 +107,19 @@
     document.getElementById('remove-icon').innerHTML = ICONS.close;
     initHeader(); // sub-page of the reporting flow; no single nav item to highlight
 
-    let photoDataUrl = null;
+    let photoFile = null;
     initPhotoUpload({
       dropzoneSelector: '[data-dropzone]',
       inputSelector: '[data-file-input]',
       previewSelector: '[data-preview]',
       imgSelector: '[data-preview-img]',
       removeSelector: '[data-remove-photo]',
-      onChange: (dataUrl) => {
-        photoDataUrl = dataUrl;
+      onChange: (dataUrl, file) => {
+        photoFile = file;
         const err = document.querySelector('[data-error-for="photo"]');
-        if (dataUrl) err.classList.remove('is-visible');
+        if (file) err.classList.remove('is-visible');
       },
+      onInvalid: (message) => showBanner(document.querySelector('[data-banner]'), message, 'error'),
     });
 
     const form = document.getElementById('found-form');
@@ -142,14 +143,14 @@
 
       let valid = true;
       const photoErr = document.querySelector('[data-error-for="photo"]');
-      if (!photoDataUrl) { photoErr.classList.add('is-visible'); valid = false; } else { photoErr.classList.remove('is-visible'); }
+      if (!photoFile) { photoErr.classList.add('is-visible'); valid = false; } else { photoErr.classList.remove('is-visible'); }
       setFieldError('location', !location); if (!location) valid = false;
       if (!valid) return;
 
       submitBtn.disabled = true;
       submitBtn.textContent = 'Submitting…';
       try {
-        await api.createFoundReport({ location, description, photo: photoDataUrl });
+        await api.createFoundReport({ location, description, photo: photoFile });
         window.location.href = 'my-reports.html?submitted=found';
       } catch (err) {
         showBanner(banner, err.message, 'error');

@@ -4,12 +4,12 @@
  * Every page talks to the server only through the functions exported at the
  * bottom of this file.
  *
- *   LIVE (real Flask backend):   signup, login, logout, getCurrentUser
- *   MOCK (localStorage for now): createLostReport, createFoundReport,
- *                                getMyReports, getMatch, respondToMatch
+ *   LIVE (real Flask backend):   signup, login, logout, getCurrentUser,
+ *                                createLostReport, createFoundReport, getMyReports
+ *   MOCK (localStorage for now): getMatch, respondToMatch
  *
  * The mock functions are marked "MOCK" below. They get replaced one step at a
- * time (reports -> My Reports -> matching -> confirmation) with the same
+ * time (matching -> confirmation page) with the same
  * return shapes, so the pages never need to change again.
  *
  * The login cookie is HttpOnly - JavaScript never sees it or the password
@@ -26,9 +26,13 @@ const AUPP_EMAIL_DOMAIN = '@aupp.edu.kh';
 // Same address as the pages (Flask serves both), so the base is empty.
 const API_BASE = '';
 
-async function request(path, { method = 'GET', body } = {}) {
+async function request(path, { method = 'GET', body, form } = {}) {
   const options = { method, credentials: 'same-origin', headers: {} };
-  if (body !== undefined) {
+  if (form !== undefined) {
+    // FormData (used for photo uploads). Don't set Content-Type: the browser
+    // adds it, including the boundary the server needs.
+    options.body = form;
+  } else if (body !== undefined) {
     options.headers['Content-Type'] = 'application/json';
     options.body = JSON.stringify(body);
   }
@@ -104,8 +108,8 @@ function getCachedUser() {
 }
 
 /* --------------------------------------------------------------------- */
-/* MOCK storage - used only by the report/match functions below, until    */
-/* they are replaced with real endpoints.                                 */
+/* MOCK storage - used only by the match functions below, until they are  */
+/* replaced with real endpoints.                                          */
 /* --------------------------------------------------------------------- */
 
 const DB_KEYS = {
@@ -131,71 +135,38 @@ function delay(ms = 320) {
 }
 
 /* --------------------------------------------------------------------- */
-/* Reports  (MOCK - replaced in Steps 2-3)                                  */
+/* Reports  (LIVE)                                                        */
 /* --------------------------------------------------------------------- */
 
-async function createLostReport(data) {
-  await delay(500);
-  // Future: POST /api/reports/lost (multipart/form-data with the photo file)
-  const user = getCachedUser();
-  if (!user) throw new Error('Please log in again.');
-  const reports = readDb(DB_KEYS.reports);
-  const report = {
-    id: uid('report'),
-    ownerId: user.id,
-    kind: 'lost',
-    itemName: data.itemName.trim(),
-    description: data.description.trim(),
-    location: data.location.trim(),
-    dateTime: data.dateTime,
-    photo: data.photo || null,
-    status: 'searching',
-    createdAt: new Date().toISOString(),
-  };
-  reports.unshift(report);
-  writeDb(DB_KEYS.reports, reports);
-  return { report };
+/** photo: a File from <input type="file"> (optional), not a data URL. */
+async function createLostReport({ itemName, description, location, dateTime, photo }) {
+  const form = new FormData();
+  form.append('itemName', itemName);
+  form.append('description', description);
+  form.append('location', location);
+  // The <input type="datetime-local"> value is the person's local time with no
+  // timezone. Convert to UTC so the server stores one consistent clock.
+  form.append('dateTime', new Date(dateTime).toISOString());
+  if (photo) form.append('photo', photo);
+  return request('/api/reports/lost', { method: 'POST', form });
 }
 
-async function createFoundReport(data) {
-  await delay(500);
-  // Future: POST /api/reports/found (multipart/form-data with the photo file)
-  // The AI image-matching pipeline would run server-side right after this
-  // upload completes, comparing the photo against open lost reports.
-  const user = getCachedUser();
-  if (!user) throw new Error('Please log in again.');
-  const reports = readDb(DB_KEYS.reports);
-  const report = {
-    id: uid('report'),
-    ownerId: user.id,
-    kind: 'found',
-    itemName: 'Found item',
-    description: (data.description || '').trim(),
-    location: data.location.trim(),
-    dateTime: new Date().toISOString(),
-    photo: data.photo || null,
-    status: 'searching',
-    createdAt: new Date().toISOString(),
-  };
-  reports.unshift(report);
-  writeDb(DB_KEYS.reports, reports);
-  return { report };
+/** photo: a File (required). */
+async function createFoundReport({ location, description, photo }) {
+  const form = new FormData();
+  form.append('location', location);
+  form.append('description', description || '');
+  form.append('photo', photo);
+  return request('/api/reports/found', { method: 'POST', form });
 }
 
+/** Resolves to { lost: [...], found: [...] } for the logged-in user, newest first. */
 async function getMyReports() {
-  await delay(250);
-  // Future: return fetch('/api/reports/mine').then(r => r.json());
-  const user = getCachedUser();
-  if (!user) throw new Error('Please log in again.');
-  const reports = readDb(DB_KEYS.reports).filter((r) => r.ownerId === user.id);
-  return {
-    lost: reports.filter((r) => r.kind === 'lost'),
-    found: reports.filter((r) => r.kind === 'found'),
-  };
+  return request('/api/reports/mine');
 }
 
 /* --------------------------------------------------------------------- */
-/* Matches  (MOCK - replaced in Steps 4-5)                                  */
+/* Matches  (MOCK - replaced in Steps 3-4)                                  */
 /* --------------------------------------------------------------------- */
 
 async function getMatch(matchId) {

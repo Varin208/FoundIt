@@ -62,6 +62,25 @@ class Report(db.Model):
 
     owner = db.relationship("User", backref="reports")
 
+    def to_dict(self):
+        """The shape the frontend already expects (camelCase)."""
+        match_id = None
+        if self.kind == "lost":
+            pending = Match.query.filter_by(lost_report_id=self.id, status="pending").first()
+            match_id = pending.id if pending else None
+        return {
+            "id": self.id,
+            "kind": self.kind,
+            "itemName": self.item_name,
+            "description": self.description,
+            "location": self.location,
+            "dateTime": to_iso(self.event_time),
+            "photo": f"/api/photos/{self.photo_filename}" if self.photo_filename else None,
+            "status": self.status,
+            "createdAt": to_iso(self.created_at),
+            "matchId": match_id,  # set once the AI finds a potential match
+        }
+
 
 class Match(db.Model):
     __tablename__ = "matches"

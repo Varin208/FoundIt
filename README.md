@@ -18,6 +18,8 @@ FoundIt/
 │   ├── app.py             Flask server: serves the website AND the /api routes
 │   ├── models.py          Database tables (users, reports, matches)
 │   ├── auth.py            Register / login / logout
+│   ├── reports.py         Save lost/found reports + photos, list my reports
+│   ├── uploads/           Saved photos (git-ignored)
 │   ├── requirements.txt
 │   └── .env.example       Copy to .env and fill in (never commit .env)
 └── README.md
@@ -42,13 +44,13 @@ the pages need the server).
 | Step | Feature | Status |
 |------|---------|--------|
 | 1 | Flask + SQLite + register / login / logout | Done |
-| 2 | Save lost/found reports and photos | Next |
-| 3 | My Reports + Home stats from the database | |
-| 4 | Gemini image matching | |
-| 5 | Confirm / deny a match, then email notifications | |
+| 2 | Save lost/found reports and photos; My Reports and Home stats from the database | Done |
+| 3 | Gemini image matching | Next |
+| 4 | Potential Match page: confirm / deny, update status | |
+| 5 | Email notifications with a link to the match page | |
 
-Until its step is done, a function in `frontend/js/api.js` marked **MOCK**
-still uses the browser's localStorage instead of the server.
+Until its step is done, `getMatch` and `respondToMatch` in `frontend/js/api.js`
+(marked **MOCK**) still use the browser's localStorage instead of the server.
 
 ## API (so far)
 
@@ -58,6 +60,10 @@ still uses the browser's localStorage instead of the server.
 | POST | `/api/auth/login` | `{email, password}` | `{user}` |
 | POST | `/api/auth/logout` | | `{ok: true}` |
 | GET | `/api/auth/me` | | `{user}` or 401 |
+| POST | `/api/reports/lost` | form: `itemName, description, location, dateTime, photo?` | `{report}` |
+| POST | `/api/reports/found` | form: `photo, location, description?` | `{report}` |
+| GET | `/api/reports/mine` | | `{lost: [...], found: [...]}` |
+| GET | `/api/photos/<name>` | | the photo (login required) |
 
 ## Security notes
 
@@ -65,3 +71,6 @@ still uses the browser's localStorage instead of the server.
   `backend/.env`, which is git-ignored. They are never sent to the browser.
 - Passwords are stored as salted hashes. The login cookie is `HttpOnly`.
 - Only emails ending in `@aupp.edu.kh` can register (checked on the server).
+- Uploaded photos are verified as real images with Pillow, stripped of metadata
+  (including GPS location), shrunk, and re-saved as JPEG under random names.
+  Only logged-in users can view them.

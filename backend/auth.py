@@ -11,6 +11,7 @@ Endpoints (JSON in, JSON out; errors look like {"error": "message"}):
     GET  /api/auth/me                                -> {user}  (401 if logged out)
 """
 import re
+from functools import wraps
 
 from flask import Blueprint, current_app, jsonify, request, session
 from sqlalchemy.exc import IntegrityError
@@ -30,6 +31,18 @@ def current_user():
     """The logged-in User, or None. Later steps import this too."""
     user_id = session.get("user_id")
     return db.session.get(User, user_id) if user_id else None
+
+
+def login_required(view):
+    """Put under @route to return 401 unless someone is logged in."""
+
+    @wraps(view)
+    def wrapper(*args, **kwargs):
+        if current_user() is None:
+            return error("Please log in.", 401)
+        return view(*args, **kwargs)
+
+    return wrapper
 
 
 def start_session(user):

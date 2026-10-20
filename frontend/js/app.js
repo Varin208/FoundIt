@@ -100,8 +100,15 @@ function readFileAsDataUrl(file) {
   });
 }
 
-/** Wires a .photo-upload dropzone + hidden file input + preview block. */
-function initPhotoUpload({ dropzoneSelector, inputSelector, previewSelector, imgSelector, removeSelector, onChange }) {
+const MAX_PHOTO_BYTES = 10 * 1024 * 1024; // 10MB, matches the server limit
+
+/**
+ * Wires a .photo-upload dropzone + hidden file input + preview block.
+ * onChange(dataUrl, file) runs when a photo is chosen, and onChange(null, null)
+ * when it is removed. `dataUrl` is only for the preview; upload the `file`.
+ * onInvalid(message) runs if the chosen file isn't an image or is too big.
+ */
+function initPhotoUpload({ dropzoneSelector, inputSelector, previewSelector, imgSelector, removeSelector, onChange, onInvalid }) {
   const dropzone = document.querySelector(dropzoneSelector);
   const input = document.querySelector(inputSelector);
   const preview = document.querySelector(previewSelector);
@@ -112,11 +119,21 @@ function initPhotoUpload({ dropzoneSelector, inputSelector, previewSelector, img
   async function handleFiles(files) {
     const file = files && files[0];
     if (!file) return;
+    if (!file.type.startsWith('image/')) {
+      input.value = '';
+      if (onInvalid) onInvalid('That file is not an image. Please choose a JPG or PNG photo.');
+      return;
+    }
+    if (file.size > MAX_PHOTO_BYTES) {
+      input.value = '';
+      if (onInvalid) onInvalid('That photo is larger than 10MB. Please choose a smaller one.');
+      return;
+    }
     const dataUrl = await readFileAsDataUrl(file);
     if (img) img.src = dataUrl;
     if (preview) preview.classList.add('is-visible');
     dropzone.style.display = 'none';
-    if (onChange) onChange(dataUrl);
+    if (onChange) onChange(dataUrl, file);
   }
 
   dropzone.addEventListener('click', () => input.click());
@@ -139,7 +156,7 @@ function initPhotoUpload({ dropzoneSelector, inputSelector, previewSelector, img
       input.value = '';
       if (preview) preview.classList.remove('is-visible');
       dropzone.style.display = '';
-      if (onChange) onChange(null);
+      if (onChange) onChange(null, null);
     });
   }
 }

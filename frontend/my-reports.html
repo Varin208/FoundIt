@@ -86,8 +86,9 @@
     const thumb = report.photo
       ? `<img src="${report.photo}" alt="">`
       : ICONS.item;
-    const linkHref = report.status === 'potential_match'
-      ? `potential-match.html?id=${matchIdForReport(report.id) || ''}`
+    // Only the owner of a LOST report reviews a match; the finder just sees the status.
+    const linkHref = report.kind === 'lost' && report.status === 'potential_match' && report.matchId
+      ? `potential-match.html?id=${report.matchId}`
       : null;
 
     const row = `
@@ -116,13 +117,6 @@
     const div = document.createElement('div');
     div.textContent = str || '';
     return div.innerHTML;
-  }
-
-  // Demo-data helper: map a report needing review back to its match id.
-  // A real backend would include `match_id` directly on the report object.
-  function matchIdForReport(reportId) {
-    const map = { report_lost_1: 'match_demo_1', report_found_match: 'match_demo_1' };
-    return map[reportId];
   }
 
   let allReports = { lost: [], found: [] };
