@@ -3,12 +3,20 @@
  * formatting helpers, and small UI behaviors reused across pages.
  */
 
-/** Redirect to login if nobody's signed in. Call at the top of protected pages. */
-function requireAuth() {
-  const user = api.getCurrentUser();
+/**
+ * Asks the server who is logged in; sends visitors to the login page if nobody is.
+ * Use at the top of every protected page:   const user = await requireAuth();
+ */
+async function requireAuth() {
+  let user = null;
+  try {
+    user = await api.getCurrentUser();
+  } catch (err) {
+    user = null; // server unreachable -> treat as logged out (login page explains)
+  }
   if (!user) {
-    // Preserve the page the person was trying to reach (e.g. a potential-match
-    // link from an email) so login can send them back after they sign in.
+    // Remember where they were headed (e.g. a potential-match link from an
+    // email) so login can send them back after they sign in.
     sessionStorage.setItem('foundit_redirect', window.location.pathname + window.location.search);
     window.location.href = 'login.html';
     return null;
@@ -18,7 +26,7 @@ function requireAuth() {
 
 /** Wires up the shared header once the page's #site-header partial is in the DOM. */
 function initHeader(activePage) {
-  const user = api.getCurrentUser();
+  const user = api.getCachedUser(); // already loaded by requireAuth()
   const nameEl = document.querySelector('[data-user-name]');
   const initialEl = document.querySelector('[data-user-initial]');
   if (user) {

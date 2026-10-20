@@ -3,7 +3,7 @@
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
-<title>Report a lost item · FoundIt</title>
+<title>Report a found item · FoundIt</title>
 <link rel="icon" type="image/png" href="assets/favicon.png">
 <link rel="apple-touch-icon" href="assets/apple-touch-icon.png">
 <link rel="preconnect" href="https://fonts.googleapis.com">
@@ -37,54 +37,41 @@
 <!-- ==== /Shared site header ==== -->
 
 <main class="page-main">
-  <div class="container" style="max-width: 720px;">
+  <div class="container" style="max-width: 640px;">
 
     <div class="page-head">
-      <h1>Report a lost item</h1>
-      <p>Give as much detail as you can — it makes it easier to match your item if someone hands it in.</p>
+      <h1>Report a found item</h1>
+      <p>Found something on campus? Just add a photo and where you found it — that's usually enough for us to find the owner.</p>
     </div>
 
     <div class="card card--pad">
       <div class="form-banner" data-banner role="alert"></div>
 
-      <form id="lost-form" novalidate>
+      <form id="found-form" novalidate>
         <div class="field">
-          <label for="itemName">Item name or type</label>
-          <input type="text" id="itemName" name="itemName" placeholder="e.g. Blue Hydro Flask water bottle" required>
-          <div class="error-text" data-error-for="itemName">Tell us what the item is.</div>
-        </div>
-
-        <div class="field">
-          <label for="description">Description</label>
-          <textarea id="description" name="description" placeholder="Color, brand, distinguishing marks, stickers, contents…" required></textarea>
-          <div class="error-text" data-error-for="description">Add a short description.</div>
-        </div>
-
-        <div class="field__row">
-          <div class="field">
-            <label for="location">Where you lost it</label>
-            <input type="text" id="location" name="location" placeholder="e.g. Library, 2nd floor" required>
-            <div class="error-text" data-error-for="location">Add a location.</div>
-          </div>
-          <div class="field">
-            <label for="dateTime">Date &amp; time lost</label>
-            <input type="datetime-local" id="dateTime" name="dateTime" required>
-            <div class="error-text" data-error-for="dateTime">Add a date and time.</div>
-          </div>
-        </div>
-
-        <div class="field">
-          <label>Photo <span style="font-weight:400; color:var(--ink-muted);">(optional, but it helps)</span></label>
-          <div class="photo-upload" data-dropzone tabindex="0" role="button" aria-label="Upload a photo">
+          <label>Photo <span style="font-weight:400; color:var(--accent-red);">(required)</span></label>
+          <div class="photo-upload photo-upload--required" data-dropzone tabindex="0" role="button" aria-label="Upload a photo of the item">
             <span class="photo-upload__icon" id="upload-icon"></span>
-            <div class="photo-upload__text">Click to upload or drag a photo here</div>
-            <div class="photo-upload__subtext">PNG or JPG, up to 10MB</div>
-            <input type="file" accept="image/*" data-file-input>
+            <div class="photo-upload__text">Click to take or upload a photo</div>
+            <div class="photo-upload__subtext">This is the main thing we need — PNG or JPG, up to 10MB</div>
+            <input type="file" accept="image/*" capture="environment" data-file-input>
           </div>
           <div class="photo-preview" data-preview>
             <img data-preview-img alt="Preview of the uploaded photo">
             <button type="button" class="photo-preview__remove" data-remove-photo aria-label="Remove photo"><span id="remove-icon"></span></button>
           </div>
+          <div class="error-text" data-error-for="photo">Add a photo of the item.</div>
+        </div>
+
+        <div class="field">
+          <label for="location">Where you found it</label>
+          <input type="text" id="location" name="location" placeholder="e.g. Cafeteria, near the entrance" required>
+          <div class="error-text" data-error-for="location">Add a location.</div>
+        </div>
+
+        <div class="field">
+          <label for="description">Description <span style="font-weight:400; color:var(--ink-muted);">(optional)</span></label>
+          <textarea id="description" name="description" placeholder="Anything that might help the owner recognize it"></textarea>
         </div>
 
         <div style="display:flex; gap:12px; margin-top: 28px;">
@@ -110,12 +97,13 @@
 <script src="js/api.js"></script>
 <script src="js/app.js"></script>
 <script>
-  const currentUser = requireAuth();
+  (async () => {
+  const currentUser = await requireAuth();
   if (currentUser) {
     document.getElementById('brand-icon').innerHTML = ICONS.logo;
     document.getElementById('logout-icon').innerHTML = ICONS.logout;
     document.getElementById('menu-icon').innerHTML = ICONS.menu;
-    document.getElementById('upload-icon').innerHTML = ICONS.upload;
+    document.getElementById('upload-icon').innerHTML = ICONS.camera;
     document.getElementById('remove-icon').innerHTML = ICONS.close;
     initHeader(); // sub-page of the reporting flow; no single nav item to highlight
 
@@ -126,41 +114,43 @@
       previewSelector: '[data-preview]',
       imgSelector: '[data-preview-img]',
       removeSelector: '[data-remove-photo]',
-      onChange: (dataUrl) => { photoDataUrl = dataUrl; },
+      onChange: (dataUrl) => {
+        photoDataUrl = dataUrl;
+        const err = document.querySelector('[data-error-for="photo"]');
+        if (dataUrl) err.classList.remove('is-visible');
+      },
     });
 
-    const form = document.getElementById('lost-form');
+    const form = document.getElementById('found-form');
     const banner = document.querySelector('[data-banner]');
     const submitBtn = document.getElementById('submit-btn');
 
     function setFieldError(field, show) {
       const input = form[field];
       const err = document.querySelector(`[data-error-for="${field}"]`);
-      if (show) { input.classList.add('form-error'); err.classList.add('is-visible'); }
-      else { input.classList.remove('form-error'); err.classList.remove('is-visible'); }
+      if (show && input) input.classList.add('form-error');
+      else if (input) input.classList.remove('form-error');
+      if (err) err.classList.toggle('is-visible', !!show);
     }
 
     form.addEventListener('submit', async (e) => {
       e.preventDefault();
       hideBanner(banner);
 
-      const itemName = form.itemName.value.trim();
-      const description = form.description.value.trim();
       const location = form.location.value.trim();
-      const dateTime = form.dateTime.value;
+      const description = form.description.value.trim();
 
       let valid = true;
-      setFieldError('itemName', !itemName); if (!itemName) valid = false;
-      setFieldError('description', !description); if (!description) valid = false;
+      const photoErr = document.querySelector('[data-error-for="photo"]');
+      if (!photoDataUrl) { photoErr.classList.add('is-visible'); valid = false; } else { photoErr.classList.remove('is-visible'); }
       setFieldError('location', !location); if (!location) valid = false;
-      setFieldError('dateTime', !dateTime); if (!dateTime) valid = false;
       if (!valid) return;
 
       submitBtn.disabled = true;
       submitBtn.textContent = 'Submitting…';
       try {
-        await api.createLostReport({ itemName, description, location, dateTime, photo: photoDataUrl });
-        window.location.href = 'my-reports.html?submitted=lost';
+        await api.createFoundReport({ location, description, photo: photoDataUrl });
+        window.location.href = 'my-reports.html?submitted=found';
       } catch (err) {
         showBanner(banner, err.message, 'error');
         submitBtn.disabled = false;
@@ -168,6 +158,7 @@
       }
     });
   }
+  })();
 </script>
 </body>
 </html>

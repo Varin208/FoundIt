@@ -59,7 +59,6 @@
       </form>
 
       <p class="auth-foot-link">Don't have an account yet? <a href="signup.html">Create one</a></p>
-      <p class="auth-foot-link" style="margin-top:6px; font-size:0.82rem;">Demo account: sophea.chan@aupp.edu.kh / foundit123</p>
     </div>
   </div>
 </div>
@@ -74,9 +73,9 @@
   document.querySelector('#icon-mail span').outerHTML = ICONS.mail;
 
   // If already logged in, skip straight to home.
-  if (api.getCurrentUser()) {
-    window.location.href = 'home.html';
-  }
+  api.getCurrentUser()
+    .then((user) => { if (user) window.location.href = 'home.html'; })
+    .catch(() => { /* server down: stay on this page */ });
 
   const form = document.getElementById('login-form');
   const banner = document.querySelector('[data-banner]');

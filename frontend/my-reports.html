@@ -78,7 +78,7 @@
 <script src="js/api.js"></script>
 <script src="js/app.js"></script>
 <script>
-  const currentUser = requireAuth();
+  let currentUser = null;
 
   function reportRowHtml(report) {
     const typeLabel = report.kind === 'lost' ? 'Lost' : 'Found';
@@ -147,6 +147,8 @@
     }
   }
 
+  requireAuth().then((user) => {
+  currentUser = user;
   if (currentUser) {
     document.getElementById('brand-icon').innerHTML = ICONS.logo;
     document.getElementById('logout-icon').innerHTML = ICONS.logout;
@@ -182,6 +184,7 @@
       render();
     });
   }
+  });
 </script>
 </body>
 </html>

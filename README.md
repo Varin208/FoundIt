@@ -1,110 +1,67 @@
-# FoundIt — AUPP Campus Lost & Found (Frontend)
+# FoundIt - AUPP Campus Lost & Found
 
-A static frontend for FoundIt, the lost & found system for the American
-University of Phnom Penh. No build step — open `index.html` (or any page)
-directly, or serve the folder with any static file server.
+A Lost & Found website for the American University of Phnom Penh.
+**Frontend:** plain HTML/CSS/JS. **Backend:** Python Flask + SQLite, with Gemini for AI image matching.
 
-**Try it:** demo account `sophea.chan@aupp.edu.kh` / `foundit123` is
-pre-seeded, along with a few sample reports and one pending match, so the
-whole flow is explorable immediately.
-
-## Structure
+## Project layout
 
 ```
-foundit/
-├── index.html            Entry point → redirects to home.html or login.html
-├── login.html
-├── signup.html
-├── home.html              "I Lost Something" / "I Found Something"
-├── report-lost.html       Full lost-item form (photo optional)
-├── report-found.html      Short found-item form (photo required)
-├── my-reports.html        List of the user's reports + status
-├── potential-match.html   Reached via an emailed link: ?id=<matchId>
-├── css/
-│   └── styles.css         All design tokens + component styles
-├── js/
-│   ├── api.js             Data layer — see "Connecting Flask" below
-│   ├── app.js              Auth guard, header wiring, formatting helpers
-│   └── icons.js            Inline SVG icon set (no icon-font dependency)
-└── assets/
-    ├── logo-icon.svg       FoundIt mark, recreated as scalable stroke SVG
-    ├── favicon.png / favicon-32.png / apple-touch-icon.png
+FoundIt/
+├── frontend/              The website (unchanged design)
+│   ├── *.html             login, signup, home, report-lost, report-found,
+│   │                      my-reports, potential-match
+│   ├── css/styles.css
+│   ├── js/api.js          The ONLY file that talks to the server
+│   ├── js/app.js          Page helpers (auth guard, header, formatting)
+│   └── js/icons.js
+├── backend/
+│   ├── app.py             Flask server: serves the website AND the /api routes
+│   ├── models.py          Database tables (users, reports, matches)
+│   ├── auth.py            Register / login / logout
+│   ├── requirements.txt
+│   └── .env.example       Copy to .env and fill in (never commit .env)
+└── README.md
 ```
 
-Each HTML page repeats the same header/footer markup rather than pulling in
-a shared partial, since there's no templating engine yet. Every copy is
-wrapped in an HTML comment:
+## Run it
 
-```html
-<!-- ==== Shared site header (extract to templates/_header.html when moving to Flask/Jinja) ==== -->
+```powershell
+cd backend
+python -m venv venv
+venv\Scripts\Activate.ps1
+pip install -r requirements.txt
+copy .env.example .env        # then edit .env and set SECRET_KEY
+python app.py
 ```
 
-When you set up Flask + Jinja, pull that block out into
-`templates/_header.html` / `_footer.html` and `{% include %}` it from a
-`base.html` layout — the markup won't need to change, just where it lives.
+Open **http://localhost:5000** (do not double-click the HTML files any more -
+the pages need the server).
 
-## Connecting the Flask backend
+## Build progress
 
-All data access goes through `js/api.js`. Right now every function reads and
-writes `localStorage` as a stand-in database, but each one is already
-`async` and returns data shaped like the intended JSON response, with the
-target endpoint noted in a comment, e.g.:
+| Step | Feature | Status |
+|------|---------|--------|
+| 1 | Flask + SQLite + register / login / logout | Done |
+| 2 | Save lost/found reports and photos | Next |
+| 3 | My Reports + Home stats from the database | |
+| 4 | Gemini image matching | |
+| 5 | Confirm / deny a match, then email notifications | |
 
-```js
-async function login({ email, password }) {
-  // Future: return fetch('/api/auth/login', { method: 'POST', body: JSON.stringify({email, password}) }).then(r => r.json());
-  ...
-}
-```
+Until its step is done, a function in `frontend/js/api.js` marked **MOCK**
+still uses the browser's localStorage instead of the server.
 
-To connect the real backend, replace each function body with the
-commented-out `fetch()` call (or your preferred HTTP client) and keep the
-return shape the same — none of the page-level code needs to change.
+## API (so far)
 
-Planned endpoints:
+| Method | Endpoint | Body | Result |
+|--------|----------|------|--------|
+| POST | `/api/auth/signup` | `{name, email, password}` | `{user}` |
+| POST | `/api/auth/login` | `{email, password}` | `{user}` |
+| POST | `/api/auth/logout` | | `{ok: true}` |
+| GET | `/api/auth/me` | | `{user}` or 401 |
 
-| Method | Endpoint                    | Used by                      |
-|--------|------------------------------|-------------------------------|
-| POST   | `/api/auth/signup`           | signup.html                   |
-| POST   | `/api/auth/login`             | login.html                    |
-| POST   | `/api/auth/logout`            | header logout button          |
-| GET    | `/api/auth/me`                 | auth guard on every page      |
-| POST   | `/api/reports/lost`            | report-lost.html              |
-| POST   | `/api/reports/found`           | report-found.html             |
-| GET    | `/api/reports/mine`            | home.html, my-reports.html    |
-| GET    | `/api/matches/:id`             | potential-match.html          |
-| POST   | `/api/matches/:id/respond`     | potential-match.html          |
+## Security notes
 
-### Photo uploads & AI matching
-
-Photos are currently read client-side into base64 data URLs
-(`readFileAsDataUrl()` in `app.js`) and stored inline for the demo. When the
-backend exists, switch the two report forms to send `multipart/form-data`
-instead, and the AI image-matching step can run server-side right after a
-found-item photo is uploaded — comparing it against open lost reports and
-creating rows in whatever table backs `/api/matches`.
-
-### Email notifications
-
-`potential-match.html` is built to be reached cold, straight from an emailed
-link (`potential-match.html?id=<matchId>`) rather than through the nav. If
-the person isn't logged in yet, `requireAuth()` in `app.js` remembers the
-page they were headed to and sends them back to it right after they log in.
-Wire the actual email send-out into whatever server-side job creates a
-match record.
-
-### Auth
-
-Signup/login currently restrict to addresses ending in `@aupp.edu.kh`
-(see `AUPP_EMAIL_DOMAIN` in `api.js`). Password hashing shown client-side is
-a placeholder only — real hashing (e.g. bcrypt/argon2) must happen
-server-side once Flask is in place.
-
-## Status vocabulary
-
-Used consistently across My Reports and the match page:
-
-- **Searching** — report is open, no match yet
-- **Potential match** — the system (or AI matching) found a candidate; needs the person's review
-- **Claimed** — confirmed match, pending pickup/return
-- **Returned** — item is back with its owner
+- Secrets (`SECRET_KEY`, later `GEMINI_API_KEY` and email password) live only in
+  `backend/.env`, which is git-ignored. They are never sent to the browser.
+- Passwords are stored as salted hashes. The login cookie is `HttpOnly`.
+- Only emails ending in `@aupp.edu.kh` can register (checked on the server).

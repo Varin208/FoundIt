@@ -1,0 +1,24 @@
+# Secrets - NEVER commit these
+.env
+*.env
+!.env.example
+
+# Python / Flask
+venv/
+.venv/
+__pycache__/
+*.pyc
+instance/
+*.sqlite3
+*.db
+
+# Photos users upload (added in Step 2)
+backend/uploads/*
+!backend/uploads/.gitkeep
+
+# OS / editor
+.DS_Store
+Thumbs.db
+*.swp
+.vscode/
+.idea/

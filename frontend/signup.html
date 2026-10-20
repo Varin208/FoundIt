@@ -82,9 +82,10 @@
   document.querySelector('#icon-shield span').outerHTML = ICONS.shield;
   document.querySelector('#icon-item span').outerHTML = ICONS.item;
 
-  if (api.getCurrentUser()) {
-    window.location.href = 'home.html';
-  }
+  // If already logged in, skip straight to home.
+  api.getCurrentUser()
+    .then((user) => { if (user) window.location.href = 'home.html'; })
+    .catch(() => { /* server down: stay on this page */ });
 
   const form = document.getElementById('signup-form');
   const banner = document.querySelector('[data-banner]');

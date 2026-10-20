@@ -1,0 +1,253 @@
+/**
+ * api.js - FoundIt data layer
+ * ---------------------------------------------------------------------------
+ * Every page talks to the server only through the functions exported at the
+ * bottom of this file.
+ *
+ *   LIVE (real Flask backend):   signup, login, logout, getCurrentUser
+ *   MOCK (localStorage for now): createLostReport, createFoundReport,
+ *                                getMyReports, getMatch, respondToMatch
+ *
+ * The mock functions are marked "MOCK" below. They get replaced one step at a
+ * time (reports -> My Reports -> matching -> confirmation) with the same
+ * return shapes, so the pages never need to change again.
+ *
+ * The login cookie is HttpOnly - JavaScript never sees it or the password
+ * hash. No secrets (API keys etc.) ever belong in this file.
+ * ---------------------------------------------------------------------------
+ */
+
+const AUPP_EMAIL_DOMAIN = '@aupp.edu.kh';
+
+/* --------------------------------------------------------------------- */
+/* Talking to the server                                                  */
+/* --------------------------------------------------------------------- */
+
+// Same address as the pages (Flask serves both), so the base is empty.
+const API_BASE = '';
+
+async function request(path, { method = 'GET', body } = {}) {
+  const options = { method, credentials: 'same-origin', headers: {} };
+  if (body !== undefined) {
+    options.headers['Content-Type'] = 'application/json';
+    options.body = JSON.stringify(body);
+  }
+
+  let response;
+  try {
+    response = await fetch(API_BASE + path, options);
+  } catch (networkError) {
+    throw new Error("Can't reach the server. Make sure the Flask app is running.");
+  }
+
+  let data = null;
+  try {
+    data = await response.json();
+  } catch (notJson) {
+    /* empty or non-JSON body */
+  }
+
+  if (!response.ok) {
+    const err = new Error((data && data.error) || 'Something went wrong. Please try again.');
+    err.status = response.status;
+    throw err;
+  }
+  return data;
+}
+
+/* --------------------------------------------------------------------- */
+/* Auth  (LIVE)                                                           */
+/* --------------------------------------------------------------------- */
+
+let currentUserCache = null; // filled in by getCurrentUser / login / signup
+
+function isUniversityEmail(email) {
+  // Quick check for friendly errors; the server enforces this for real.
+  return typeof email === 'string' && email.toLowerCase().endsWith(AUPP_EMAIL_DOMAIN);
+}
+
+async function signup({ name, email, password }) {
+  const data = await request('/api/auth/signup', { method: 'POST', body: { name, email, password } });
+  currentUserCache = data.user;
+  return data;
+}
+
+async function login({ email, password }) {
+  const data = await request('/api/auth/login', { method: 'POST', body: { email, password } });
+  currentUserCache = data.user;
+  return data;
+}
+
+async function logout() {
+  try {
+    await request('/api/auth/logout', { method: 'POST' });
+  } finally {
+    currentUserCache = null;
+  }
+}
+
+/** Asks the server who is logged in. Resolves to the user, or null if nobody is. */
+async function getCurrentUser() {
+  try {
+    const data = await request('/api/auth/me');
+    currentUserCache = data.user;
+  } catch (err) {
+    if (err.status !== 401) throw err;
+    currentUserCache = null;
+  }
+  return currentUserCache;
+}
+
+/** Instant, no network: whoever getCurrentUser/login/signup last returned. */
+function getCachedUser() {
+  return currentUserCache;
+}
+
+/* --------------------------------------------------------------------- */
+/* MOCK storage - used only by the report/match functions below, until    */
+/* they are replaced with real endpoints.                                 */
+/* --------------------------------------------------------------------- */
+
+const DB_KEYS = {
+  reports: 'foundit_reports',
+  matches: 'foundit_matches',
+};
+
+function readDb(key) {
+  try {
+    return JSON.parse(localStorage.getItem(key)) || [];
+  } catch (e) {
+    return [];
+  }
+}
+function writeDb(key, value) {
+  localStorage.setItem(key, JSON.stringify(value));
+}
+function uid(prefix) {
+  return prefix + '_' + Math.random().toString(36).slice(2, 10);
+}
+function delay(ms = 320) {
+  return new Promise((resolve) => setTimeout(resolve, ms));
+}
+
+/* --------------------------------------------------------------------- */
+/* Reports  (MOCK - replaced in Steps 2-3)                                  */
+/* --------------------------------------------------------------------- */
+
+async function createLostReport(data) {
+  await delay(500);
+  // Future: POST /api/reports/lost (multipart/form-data with the photo file)
+  const user = getCachedUser();
+  if (!user) throw new Error('Please log in again.');
+  const reports = readDb(DB_KEYS.reports);
+  const report = {
+    id: uid('report'),
+    ownerId: user.id,
+    kind: 'lost',
+    itemName: data.itemName.trim(),
+    description: data.description.trim(),
+    location: data.location.trim(),
+    dateTime: data.dateTime,
+    photo: data.photo || null,
+    status: 'searching',
+    createdAt: new Date().toISOString(),
+  };
+  reports.unshift(report);
+  writeDb(DB_KEYS.reports, reports);
+  return { report };
+}
+
+async function createFoundReport(data) {
+  await delay(500);
+  // Future: POST /api/reports/found (multipart/form-data with the photo file)
+  // The AI image-matching pipeline would run server-side right after this
+  // upload completes, comparing the photo against open lost reports.
+  const user = getCachedUser();
+  if (!user) throw new Error('Please log in again.');
+  const reports = readDb(DB_KEYS.reports);
+  const report = {
+    id: uid('report'),
+    ownerId: user.id,
+    kind: 'found',
+    itemName: 'Found item',
+    description: (data.description || '').trim(),
+    location: data.location.trim(),
+    dateTime: new Date().toISOString(),
+    photo: data.photo || null,
+    status: 'searching',
+    createdAt: new Date().toISOString(),
+  };
+  reports.unshift(report);
+  writeDb(DB_KEYS.reports, reports);
+  return { report };
+}
+
+async function getMyReports() {
+  await delay(250);
+  // Future: return fetch('/api/reports/mine').then(r => r.json());
+  const user = getCachedUser();
+  if (!user) throw new Error('Please log in again.');
+  const reports = readDb(DB_KEYS.reports).filter((r) => r.ownerId === user.id);
+  return {
+    lost: reports.filter((r) => r.kind === 'lost'),
+    found: reports.filter((r) => r.kind === 'found'),
+  };
+}
+
+/* --------------------------------------------------------------------- */
+/* Matches  (MOCK - replaced in Steps 4-5)                                  */
+/* --------------------------------------------------------------------- */
+
+async function getMatch(matchId) {
+  await delay(300);
+  // Future: return fetch(`/api/matches/${matchId}`).then(r => r.json());
+  const matches = readDb(DB_KEYS.matches);
+  const match = matches.find((m) => m.id === matchId);
+  if (!match) throw new Error('This match link is no longer valid.');
+  const reports = readDb(DB_KEYS.reports);
+  const lostReport = reports.find((r) => r.id === match.lostReportId);
+  const foundReport = reports.find((r) => r.id === match.foundReportId);
+  return { match, lostReport, foundReport };
+}
+
+async function respondToMatch(matchId, confirmed) {
+  await delay(400);
+  // Future: return fetch(`/api/matches/${matchId}/respond`, { method: 'POST', body: JSON.stringify({ confirmed }) }).then(r => r.json());
+  const matches = readDb(DB_KEYS.matches);
+  const match = matches.find((m) => m.id === matchId);
+  if (!match) throw new Error('This match link is no longer valid.');
+  match.status = confirmed ? 'confirmed' : 'rejected';
+
+  const reports = readDb(DB_KEYS.reports);
+  const lostReport = reports.find((r) => r.id === match.lostReportId);
+  const foundReport = reports.find((r) => r.id === match.foundReportId);
+  if (confirmed) {
+    if (lostReport) lostReport.status = 'claimed';
+    if (foundReport) foundReport.status = 'claimed';
+  } else {
+    if (lostReport) lostReport.status = 'searching';
+    // The found item stays available for other possible matches.
+    if (foundReport) foundReport.status = 'searching';
+  }
+  writeDb(DB_KEYS.matches, matches);
+  writeDb(DB_KEYS.reports, reports);
+  return { match };
+}
+
+/* --------------------------------------------------------------------- */
+/* Exported namespace                                                     */
+/* --------------------------------------------------------------------- */
+const api = {
+  AUPP_EMAIL_DOMAIN,
+  isUniversityEmail,
+  signup,
+  login,
+  logout,
+  getCurrentUser,
+  getCachedUser,
+  createLostReport,
+  createFoundReport,
+  getMyReports,
+  getMatch,
+  respondToMatch,
+};
