@@ -25,6 +25,7 @@ FRONTEND_DIR = BASE_DIR.parent / "frontend"
 load_dotenv(BASE_DIR / ".env")
 
 from auth import auth_bp  # noqa: E402  (imported after load_dotenv on purpose)
+from matches import matches_bp  # noqa: E402
 from matching import DEFAULT_MODEL, DEFAULT_THRESHOLD  # noqa: E402
 from models import db  # noqa: E402
 from reports import reports_bp  # noqa: E402
@@ -76,6 +77,7 @@ def create_app(test_config=None):
 
     app.register_blueprint(auth_bp)
     app.register_blueprint(reports_bp)
+    app.register_blueprint(matches_bp)
 
     @app.get("/")
     def index():

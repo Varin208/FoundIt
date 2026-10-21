@@ -57,7 +57,7 @@
         <span id="alert-icon"></span>
         <div>
           <strong>Take a look before you decide</strong>
-          Compare the details below carefully. Once you respond, we'll notify the person who found it.
+          Compare the details below carefully before you answer. If you're not sure, it's fine to say it isn't yours.
         </div>
       </div>
 
@@ -180,8 +180,37 @@
           document.getElementById('found-photo-icon').innerHTML = ICONS.camera;
         }
 
+        const RESULTS = {
+          confirmed: {
+            icon: ICONS.check, color: 'var(--accent-teal)',
+            title: "Great — it's marked as yours",
+            text: 'This item is now marked as claimed, and your report shows as Claimed in My Reports.',
+          },
+          rejected: {
+            icon: ICONS.close, color: 'var(--accent-slate)',
+            title: 'Thanks for letting us know',
+            text: "Your lost item report stays open, and we'll compare it with items that are found in future.",
+          },
+          closed: {
+            icon: ICONS.close, color: 'var(--accent-slate)',
+            title: 'This item has already been claimed',
+            text: 'Someone else claimed it first. Your lost item report stays open, and we\'ll compare it with items that are found in future.',
+          },
+        };
+
+        function showResult(status) {
+          const result = RESULTS[status] || RESULTS.rejected;
+          document.querySelector('[data-decision-panel]').style.display = 'none';
+          document.querySelector('[data-decision-result]').style.display = 'block';
+          const icon = document.getElementById('result-icon');
+          icon.innerHTML = result.icon;
+          icon.style.color = result.color;
+          document.querySelector('[data-result-title]').textContent = result.title;
+          document.querySelector('[data-result-text]').textContent = result.text;
+        }
+
         if (match.status !== 'pending') {
-          showResult(match.status === 'confirmed');
+          showResult(match.status);   // already answered (or claimed by someone else)
         }
 
         document.querySelector('[data-confirm-yes]').addEventListener('click', () => respond(true));
@@ -190,27 +219,14 @@
         async function respond(isMatch) {
           document.querySelectorAll('[data-decision-panel] button').forEach((b) => (b.disabled = true));
           try {
-            await api.respondToMatch(matchId, isMatch);
-            showResult(isMatch);
+            const { match: updated } = await api.respondToMatch(matchId, isMatch);
+            showResult(updated.status);   // confirmed, rejected, or closed
           } catch (err) {
             alert(err.message);
             document.querySelectorAll('[data-decision-panel] button').forEach((b) => (b.disabled = false));
           }
         }
 
-        function showResult(isMatch) {
-          document.querySelector('[data-decision-panel]').style.display = 'none';
-          const resultPanel = document.querySelector('[data-decision-result]');
-          resultPanel.style.display = 'block';
-          document.getElementById('result-icon').innerHTML = isMatch ? ICONS.check : ICONS.close;
-          document.getElementById('result-icon').style.color = isMatch ? 'var(--accent-teal)' : 'var(--accent-slate)';
-          document.querySelector('[data-result-title]').textContent = isMatch
-            ? "Great — we'll help you get it back"
-            : 'Thanks for letting us know';
-          document.querySelector('[data-result-text]').textContent = isMatch
-            ? "We've marked this as claimed and notified the person who found it. They'll be in touch about pickup."
-            : "We'll keep watching for other possible matches for your lost item.";
-        }
       } catch (err) {
         document.querySelector('[data-not-found]').style.display = 'block';
       }

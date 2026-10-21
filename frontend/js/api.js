@@ -2,15 +2,7 @@
  * api.js - FoundIt data layer
  * ---------------------------------------------------------------------------
  * Every page talks to the server only through the functions exported at the
- * bottom of this file.
- *
- *   LIVE (real Flask backend):   signup, login, logout, getCurrentUser,
- *                                createLostReport, createFoundReport, getMyReports
- *   MOCK (localStorage for now): getMatch, respondToMatch
- *
- * The mock functions are marked "MOCK" below. They get replaced one step at a
- * time (matching -> confirmation page) with the same
- * return shapes, so the pages never need to change again.
+ * bottom of this file. All of them call the real Flask backend.
  *
  * The login cookie is HttpOnly - JavaScript never sees it or the password
  * hash. No secrets (API keys etc.) ever belong in this file.
@@ -108,33 +100,6 @@ function getCachedUser() {
 }
 
 /* --------------------------------------------------------------------- */
-/* MOCK storage - used only by the match functions below, until they are  */
-/* replaced with real endpoints.                                          */
-/* --------------------------------------------------------------------- */
-
-const DB_KEYS = {
-  reports: 'foundit_reports',
-  matches: 'foundit_matches',
-};
-
-function readDb(key) {
-  try {
-    return JSON.parse(localStorage.getItem(key)) || [];
-  } catch (e) {
-    return [];
-  }
-}
-function writeDb(key, value) {
-  localStorage.setItem(key, JSON.stringify(value));
-}
-function uid(prefix) {
-  return prefix + '_' + Math.random().toString(36).slice(2, 10);
-}
-function delay(ms = 320) {
-  return new Promise((resolve) => setTimeout(resolve, ms));
-}
-
-/* --------------------------------------------------------------------- */
 /* Reports  (LIVE)                                                        */
 /* --------------------------------------------------------------------- */
 
@@ -166,43 +131,27 @@ async function getMyReports() {
 }
 
 /* --------------------------------------------------------------------- */
-/* Matches  (MOCK - replaced in Steps 3-4)                                  */
+/* Matches  (LIVE)                                                        */
 /* --------------------------------------------------------------------- */
 
+/**
+ * Resolves to { match: {id, status}, lostReport, foundReport }.
+ * Rejects with status 404 if the match doesn't exist or isn't yours.
+ */
 async function getMatch(matchId) {
-  await delay(300);
-  // Future: return fetch(`/api/matches/${matchId}`).then(r => r.json());
-  const matches = readDb(DB_KEYS.matches);
-  const match = matches.find((m) => m.id === matchId);
-  if (!match) throw new Error('This match link is no longer valid.');
-  const reports = readDb(DB_KEYS.reports);
-  const lostReport = reports.find((r) => r.id === match.lostReportId);
-  const foundReport = reports.find((r) => r.id === match.foundReportId);
-  return { match, lostReport, foundReport };
+  return request(`/api/matches/${encodeURIComponent(matchId)}`);
 }
 
+/**
+ * confirmed: true = "This is my item", false = "This isn't my item".
+ * Resolves to { match: {id, status} } where status is confirmed, rejected,
+ * or closed (someone else claimed the item first).
+ */
 async function respondToMatch(matchId, confirmed) {
-  await delay(400);
-  // Future: return fetch(`/api/matches/${matchId}/respond`, { method: 'POST', body: JSON.stringify({ confirmed }) }).then(r => r.json());
-  const matches = readDb(DB_KEYS.matches);
-  const match = matches.find((m) => m.id === matchId);
-  if (!match) throw new Error('This match link is no longer valid.');
-  match.status = confirmed ? 'confirmed' : 'rejected';
-
-  const reports = readDb(DB_KEYS.reports);
-  const lostReport = reports.find((r) => r.id === match.lostReportId);
-  const foundReport = reports.find((r) => r.id === match.foundReportId);
-  if (confirmed) {
-    if (lostReport) lostReport.status = 'claimed';
-    if (foundReport) foundReport.status = 'claimed';
-  } else {
-    if (lostReport) lostReport.status = 'searching';
-    // The found item stays available for other possible matches.
-    if (foundReport) foundReport.status = 'searching';
-  }
-  writeDb(DB_KEYS.matches, matches);
-  writeDb(DB_KEYS.reports, reports);
-  return { match };
+  return request(`/api/matches/${encodeURIComponent(matchId)}/respond`, {
+    method: 'POST',
+    body: { confirmed },
+  });
 }
 
 /* --------------------------------------------------------------------- */
