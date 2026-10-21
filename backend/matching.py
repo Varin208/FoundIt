@@ -23,6 +23,7 @@ from google import genai
 from google.genai import types
 from PIL import Image
 
+import mailer
 from models import Match, Report, db, utcnow
 
 DEFAULT_MODEL = "gemini-3.8-flash"  # change with GEMINI_MODEL in .env
@@ -33,6 +34,13 @@ CANDIDATE_MAX_AGE_DAYS = 60
 MAX_MATCHES_PER_FOUND = 3  # keep only the best few so owners aren't spammed
 AI_IMAGE_SIDE = 768  # photos are shrunk before sending (faster, cheaper)
 AI_TIMEOUT_MS = 60_000
+
+# Google sometimes answers "503 high demand" or "429 slow down" for a moment.
+# The SDK retries those automatically, waiting a bit longer each time
+# (about 5s, 10s, 20s, 40s between the 5 attempts).
+RETRY_ATTEMPTS = 5
+RETRY_INITIAL_DELAY = 5.0
+RETRY_MAX_DELAY = 60.0
 
 SYSTEM_INSTRUCTION = """You are the matching assistant for a university lost-and-found.
 You receive one FOUND item (photo and notes) and a numbered list of LOST-item reports
@@ -75,8 +83,18 @@ class MatchingError(Exception):
     pass
 
 
-def make_client(api_key):
-    return genai.Client(api_key=api_key)
+def make_client(api_key, base_url=None):
+    """base_url is only for tests; leave it out normally."""
+    http_options = types.HttpOptions(
+        base_url=base_url,
+        retry_options=types.HttpRetryOptions(
+            attempts=RETRY_ATTEMPTS,
+            initial_delay=RETRY_INITIAL_DELAY,
+            max_delay=RETRY_MAX_DELAY,
+            http_status_codes=[429, 500, 502, 503, 504],
+        ),
+    )
+    return genai.Client(api_key=api_key, http_options=http_options)
 
 
 # --------------------------------------------------------------------------
@@ -269,6 +287,16 @@ def run_matching(app, found_report_id, client=None):
         ids = [m.id for m in created]
         log.info("Found report #%s: %s potential match(es) created %s (threshold %.2f).",
                  found.id, len(ids), ids, threshold)
+
+        # Tell each owner. A mail problem must never undo or hide the match itself
+        # (the owner still sees "Review match" in My Reports).
+        for match in created:
+            try:
+                sent = mailer.notify_potential_match(app, match)
+                if sent:
+                    log.info("Emailed the owner of lost report #%s about match #%s.", match.lost_report_id, match.id)
+            except Exception as err:
+                log.error("Could not email the owner for match #%s: %s: %s", match.id, type(err).__name__, err)
         return ids
 
 

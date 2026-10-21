@@ -33,6 +33,13 @@ from reports import reports_bp  # noqa: E402
 DEV_SECRET_KEY = "dev-only-secret-change-me"
 
 
+def read_int(raw, default):
+    try:
+        return int(str(raw).strip())
+    except (TypeError, ValueError):
+        return default
+
+
 def read_threshold(raw):
     """MATCH_THRESHOLD from .env: a number between 0 and 1 (default 0.6)."""
     try:
@@ -61,6 +68,16 @@ def create_app(test_config=None):
         GEMINI_API_KEY=os.environ.get("GEMINI_API_KEY", "").strip(),
         GEMINI_MODEL=os.environ.get("GEMINI_MODEL", "").strip() or DEFAULT_MODEL,
         MATCH_THRESHOLD=read_threshold(os.environ.get("MATCH_THRESHOLD")),
+        # Email. Leave MAIL_SERVER empty to print emails in the terminal instead.
+        MAIL_SERVER=os.environ.get("MAIL_SERVER", "").strip(),
+        MAIL_PORT=read_int(os.environ.get("MAIL_PORT"), 587),
+        MAIL_USERNAME=os.environ.get("MAIL_USERNAME", "").strip(),
+        MAIL_PASSWORD=os.environ.get("MAIL_PASSWORD", ""),
+        MAIL_USE_TLS=os.environ.get("MAIL_USE_TLS", "1").strip() != "0",
+        MAIL_FROM=os.environ.get("MAIL_FROM", "").strip()
+        or os.environ.get("MAIL_USERNAME", "").strip() or "foundit@localhost",
+        # Used to build the link inside emails.
+        APP_BASE_URL=(os.environ.get("APP_BASE_URL", "").strip() or "http://localhost:5000").rstrip("/"),
     )
     if test_config:
         app.config.update(test_config)

@@ -21,6 +21,7 @@ FoundIt/
 │   ├── reports.py         Save lost/found reports + photos, list my reports
 │   ├── matching.py        Gemini AI matching (runs when a found item is reported)
 │   ├── matches.py         View a match, confirm / deny it, update statuses
+│   ├── mailer.py          Email notifications (or prints them while testing)
 │   ├── check_gemini.py    Tests your Gemini key and model before you rely on them
 │   ├── uploads/           Saved photos (git-ignored)
 │   ├── requirements.txt
@@ -50,7 +51,7 @@ the pages need the server).
 | 2 | Save lost/found reports and photos; My Reports and Home stats from the database | Done |
 | 3 | Gemini image matching | Done |
 | 4 | Potential Match page: confirm / deny, update status | Done |
-| 5 | Email notifications with a link to the match page | Next |
+| 5 | Email notifications with a link to the match page; automatic AI retries | Done |
 
 ## How the AI matching works
 
@@ -85,6 +86,23 @@ Progress and each score are printed in the server terminal. If matching seems
 to do nothing, check there first, then run `python check_gemini.py`.
 
 Settings in `backend/.env`: `GEMINI_API_KEY`, `GEMINI_MODEL`, `MATCH_THRESHOLD`.
+
+If Google answers "503 high demand" or "429", the request is retried up to 5 times
+with growing pauses (about 5s, 10s, 20s, 40s) before giving up.
+
+## Email notifications
+
+When a potential match is created, the **owner of the lost report** gets an email with a
+link to `potential-match.html?id=<match id>`. The email never contains the found item's
+photo, location or finder; those appear only after logging in. The finder is not emailed.
+
+- **Testing:** leave `MAIL_SERVER` empty in `.env`. Nothing is sent; the email is
+  printed in the server terminal so you can copy the link.
+- **Real email:** fill in `MAIL_SERVER`, `MAIL_PORT`, `MAIL_USERNAME`, `MAIL_PASSWORD`
+  (for Gmail use an App Password, not your normal password) and set `APP_BASE_URL` to
+  your site's address.
+- If sending fails, the error is logged and the match is still saved; the owner can
+  still see **Review match** in My Reports.
 
 ## API (so far)
 
