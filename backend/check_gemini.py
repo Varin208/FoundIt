@@ -23,7 +23,7 @@ from PIL import Image, ImageDraw  # noqa: E402
 
 from matching import DEFAULT_MODEL  # noqa: E402
 
-FALLBACK_MODELS = ["gemini-3.8-flash", "gemini-3.6-flash", "gemini-3.1-flash-lite"]
+FALLBACK_MODELS = ["gemini-3.6-flash", "gemini-3.8-flash", "gemini-3.1-flash-lite"]
 
 
 def test_image():

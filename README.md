@@ -23,6 +23,7 @@ FoundIt/
 │   ├── matches.py         View a match, confirm / deny it, update statuses
 │   ├── mailer.py          Email notifications (or prints them while testing)
 │   ├── check_gemini.py    Tests your Gemini key and model before you rely on them
+│   ├── tune_matching.py   Tests matching strictness on your own photos (tune_cases/)
 │   ├── uploads/           Saved photos (git-ignored)
 │   ├── requirements.txt
 │   └── .env.example       Copy to .env and fill in (never commit .env)
@@ -89,6 +90,13 @@ Settings in `backend/.env`: `GEMINI_API_KEY`, `GEMINI_MODEL`, `MATCH_THRESHOLD`.
 
 If Google answers "503 high demand" or "429", the request is retried up to 5 times
 with growing pauses (about 5s, 10s, 20s, 40s) before giving up.
+
+## Tuning the AI
+
+`python tune_matching.py` (from `backend`, venv active) runs your own test photos from
+`backend/tune_cases/` through the matching code and prints every score, so you can see how
+strict the AI is and pick `MATCH_THRESHOLD`. See `backend/tune_cases/README.txt` for how to
+name the photos. It compares the previous instructions with the current ones.
 
 ## Email notifications
 

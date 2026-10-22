@@ -16,6 +16,10 @@ instance/
 backend/uploads/*
 !backend/uploads/.gitkeep
 
+# Your personal test photos for tune_matching.py
+backend/tune_cases/*
+!backend/tune_cases/README.txt
+
 # OS / editor
 .DS_Store
 Thumbs.db
